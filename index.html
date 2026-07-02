@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lot — position size calculator</title>
+<meta name="description" content="Fast forex position size calculator. Account, risk %, stop loss — get your lot size.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101418;
+    --panel: #161B21;
+    --panel-2: #1C232B;
+    --line: #242D37;
+    --line-strong: #2F3A46;
+    --text: #E8EDF2;
+    --text-dim: #8B98A5;
+    --text-faint: #5A6773;
+    --accent: #35C48D;
+    --accent-dim: #1E5C45;
+    --warn: #E8A33D;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --sans: "Instrument Sans", system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 16px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 64px;
+  }
+  .app { width: 100%; max-width: 460px; }
+
+  header { margin-bottom: 36px; }
+  .brand {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  h1 {
+    font-size: 21px;
+    font-weight: 500;
+    margin-top: 10px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .field {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px 11px;
+    transition: border-color 120ms ease;
+  }
+  .field:focus-within { border-color: var(--accent-dim); }
+  .field.wide { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+  input, select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 500;
+    -moz-appearance: textfield;
+  }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  select { cursor: pointer; }
+  select option { background: var(--panel-2); color: var(--text); }
+
+  .result {
+    margin-top: 22px;
+    background: var(--panel-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    padding: 22px 20px 18px;
+    text-align: center;
+  }
+  .result-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .lots {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--accent);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .lots.warn { color: var(--warn); }
+  .units {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  .stat { text-align: center; }
+  .stat + .stat { border-left: 1px solid var(--line); }
+  .stat .k {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .stat .v {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .note {
+    margin-top: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+  .note strong { color: var(--text); font-weight: 500; }
+  .flag { color: var(--warn); }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 420px) {
+    .grid { grid-template-columns: 1fr; }
+    .field.wide { grid-column: auto; }
+    .lots { font-size: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">Lot</div>
+    <h1>Position size calculator</h1>
+    <p class="sub">Risk-first sizing. Leverage never changes the answer — only your margin.</p>
+  </header>
+
+  <div class="grid">
+    <div class="field">
+      <label for="acct">Account ($)</label>
+      <input type="number" id="acct" value="1000" min="1" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="risk">Risk (%)</label>
+      <input type="number" id="risk" value="1" min="0.05" step="0.05" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="sl">Stop loss (pips)</label>
+      <input type="number" id="sl" value="10" min="0.1" step="0.1" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="pair">Pair</label>
+      <select id="pair">
+        <option value="GBPUSD" selected>GBPUSD</option>
+        <option value="EURUSD">EURUSD</option>
+        <option value="AUDUSD">AUDUSD</option>
+        <option value="NZDUSD">NZDUSD</option>
+        <option value="USDJPY">USDJPY</option>
+        <option value="USDCAD">USDCAD</option>
+        <option value="USDCHF">USDCHF</option>
+        <option value="EURJPY">EURJPY</option>
+        <option value="GBPJPY">GBPJPY</option>
+        <option value="XAUUSD">XAUUSD (gold)</option>
+        <option value="custom">Custom pip value</option>
+      </select>
+    </div>
+    <div class="field wide" id="custom-row" style="display:none;">
+      <label for="pipcustom">Pip value per 1.00 lot ($)</label>
+      <input type="number" id="pipcustom" value="10" min="0.01" step="0.01" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="lev">Leverage</label>
+      <select id="lev">
+        <option value="30">1:30</option>
+        <option value="100">1:100</option>
+        <option value="200">1:200</option>
+        <option value="500" selected>1:500</option>
+        <option value="1000">1:1000</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="minlot">Broker min lot</label>
+      <select id="minlot">
+        <option value="0.01" selected>0.01 (micro)</option>
+        <option value="0.1">0.10 (mini)</option>
+        <option value="1">1.00 (standard)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="result">
+    <div class="result-label">Lot size</div>
+    <div class="lots" id="lots">0.10</div>
+    <div class="units" id="units">10,000 units</div>
+    <div class="stats">
+      <div class="stat">
+        <div class="k">Risk</div>
+        <div class="v" id="riskamt">$10.00</div>
+      </div>
+      <div class="stat">
+        <div class="k">$/pip</div>
+        <div class="v" id="pipval">$1.00</div>
+      </div>
+      <div class="stat">
+        <div class="k">Margin</div>
+        <div class="v" id="margin">$25</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="note"></p>
+
+  <footer>
+    Pip values for JPY, CAD and CHF cross pairs use approximate exchange rates baked into this page — verify against your platform, or use "Custom pip value" with the exact figure from your broker. Margin estimate uses approximate spot prices.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var els = {
+    acct: document.getElementById('acct'),
+    risk: document.getElementById('risk'),
+    sl: document.getElementById('sl'),
+    pair: document.getElementById('pair'),
+    lev: document.getElementById('lev'),
+    minlot: document.getElementById('minlot'),
+    pipcustom: document.getElementById('pipcustom'),
+    customRow: document.getElementById('custom-row'),
+    lots: document.getElementById('lots'),
+    units: document.getElementById('units'),
+    riskamt: document.getElementById('riskamt'),
+    pipval: document.getElementById('pipval'),
+    margin: document.getElementById('margin'),
+    note: document.getElementById('note')
+  };
+
+  var FX = { JPY: 155, CAD: 1.37, CHF: 0.89 };
+  var PRICE = {
+    GBPUSD: 1.27, EURUSD: 1.08, AUDUSD: 0.66, NZDUSD: 0.61,
+    USDJPY: 155, USDCAD: 1.37, USDCHF: 0.89,
+    EURJPY: 167, GBPJPY: 197, XAUUSD: 2400
+  };
+
+  function pipValuePerLot(pair) {
+    if (pair === 'custom') return parseFloat(els.pipcustom.value) || 0;
+    if (pair === 'XAUUSD') return 10;
+    var quote = pair.slice(3);
+    if (quote === 'USD') return 10;
+    if (quote === 'JPY') return 1000 / FX.JPY;
+    if (quote === 'CAD') return 10 / FX.CAD;
+    if (quote === 'CHF') return 10 / FX.CHF;
+    return 10;
+  }
+
+  function notionalPerLot(pair) {
+    if (pair === 'custom') return 100000;
+    if (pair === 'XAUUSD') return 100 * PRICE.XAUUSD;
+    var base = pair.slice(0, 3);
+    if (base === 'USD') return 100000;
+    var baseUsd = { GBP: 1.27, EUR: 1.08, AUD: 0.66, NZD: 0.61 }[base] || 1;
+    return 100000 * baseUsd;
+  }
+
+  function fmt(n, d) {
+    return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function calc() {
+    var pair = els.pair.value;
+    els.customRow.style.display = pair === 'custom' ? '' : 'none';
+
+    var acct = parseFloat(els.acct.value) || 0;
+    var riskPct = parseFloat(els.risk.value) || 0;
+    var sl = parseFloat(els.sl.value) || 0;
+    var minLot = parseFloat(els.minlot.value);
+    var lev = parseFloat(els.lev.value);
+    var pv = pipValuePerLot(pair);
+
+    var riskAmt = acct * riskPct / 100;
+    var raw = (sl > 0 && pv > 0) ? riskAmt / (sl * pv) : 0;
+    var step = minLot;
+    var lots = Math.floor(raw / step) * step;
+    lots = Math.round(lots * 100) / 100;
+
+    var notes = [];
+    var warn = false;
+
+    if (raw > 0 && lots < minLot) {
+      lots = 0;
+      warn = true;
+      notes.push('<span class="flag">Position too small:</span> at this SL and risk, even the broker minimum of ' + minLot.toFixed(2) + ' lots would risk more than your limit. Widen the risk %, tighten nothing — or accept overshoot knowingly.');
+    } else if (raw > 0 && (raw - lots) / raw > 0.15) {
+      notes.push('Rounded down from ' + raw.toFixed(3) + ' — actual risk is <strong>$' + fmt(lots * sl * pv, 2) + '</strong> (' + fmt(lots * sl * pv / acct * 100, 2) + '% of account).');
+    }
+
+    var actualRisk = lots * sl * pv;
+    var margin = lots * notionalPerLot(pair) / lev;
+
+    if (margin > acct && lots > 0) {
+      warn = true;
+      notes.push('<span class="flag">Margin exceeds account balance</span> — this position cannot be opened at 1:' + lev + '.');
+    } else if (margin > acct * 0.5 && lots > 0) {
+      notes.push('Margin uses over half your balance — little room before a margin call if price moves against you.');
+    }
+
+    if (riskPct > 3) {
+      notes.push('<span class="flag">' + riskPct + '% risk per trade:</span> a normal losing streak will cut deep. Your own streak data applies here.');
+    }
+
+    els.lots.textContent = lots.toFixed(2);
+    els.lots.className = 'lots' + (warn ? ' warn' : '');
+    els.units.textContent = fmt(lots * 100000, 0) + ' units';
+    els.riskamt.textContent = '$' + fmt(lots > 0 ? actualRisk : riskAmt, 2);
+    els.pipval.textContent = '$' + fmt(lots * pv, 2);
+    els.margin.textContent = '$' + fmt(margin, 0);
+    els.note.innerHTML = notes.join('<br><br>');
+  }
+
+  ['input', 'change'].forEach(function (ev) {
+    [els.acct, els.risk, els.sl, els.pair, els.lev, els.minlot, els.pipcustom].forEach(function (el) {
+      el.addEventListener(ev, calc);
+    });
+  });
+  calc();
+})();
+</script>
+</body>
+</html>
